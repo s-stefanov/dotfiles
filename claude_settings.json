@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "opus",
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "claude-memory@Claudest": true
+  },
+  "extraKnownMarketplaces": {
+    "Claudest": {
+      "source": {
+        "source": "github",
+        "repo": "gupsammy/claudest"
+      }
+    }
+  },
+  "effortLevel": "xhigh",
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark",
+  "skipAutoPermissionPrompt": true
+}
