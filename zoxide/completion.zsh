@@ -1,4 +1,4 @@
-if (( $+commands[uv] ))
+if (( $+commands[zoxide] ))
 then
-    eval "$(zoxide init zsh --cmd cd)"
+    eval "$(zoxide init zsh --cmd j)"
 fi

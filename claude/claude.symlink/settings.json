@@ -16,6 +16,12 @@
         "source": "github",
         "repo": "gupsammy/claudest"
       }
+    },
+    "obsidian-skills": {
+      "source": {
+        "source": "github",
+        "repo": "kepano/obsidian-skills"
+      }
     }
   },
   "effortLevel": "xhigh",

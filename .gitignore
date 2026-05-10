@@ -1,2 +1,4 @@
 git/gitconfig.local.symlink
 Brewfile.lock.json
+
+claude/claude.symlink/settings.local.json
