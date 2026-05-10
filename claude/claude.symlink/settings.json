@@ -8,9 +8,6 @@
     "command": "~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "superpowers@claude-plugins-official": false,
-    "skill-creator@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true,
     "claude-memory@Claudest": true
   },
   "extraKnownMarketplaces": {

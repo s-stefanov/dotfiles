@@ -132,8 +132,20 @@ install_dotfiles () {
 
   for src in $(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
   do
-    dst="$HOME/.$(basename "${src%.*}")"
-    link_file "$src" "$dst"
+    local name="$(basename "${src%.*}")"
+    local dst_root="$HOME/.$name"
+
+    if [ -d "$src" ] && [ ! -L "$src" ]; then
+      mkdir -p "$dst_root"
+      shopt -s nullglob dotglob
+      for child in "$src"/*; do
+        local dst="$dst_root/$(basename "$child")"
+        link_file "$child" "$dst"
+      done
+      shopt -u nullglob dotglob
+    else
+      link_file "$src" "$dst_root"
+    fi
   done
 }
 
