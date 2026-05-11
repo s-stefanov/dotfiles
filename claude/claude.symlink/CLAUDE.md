@@ -50,3 +50,7 @@
 - Simplicity First: Make every change as simple as possible. Impact minimal code.
 - No Laziness: Find root causes. No temporary fixes. Senior developer standards.
 - Minimal Impact: Only touch what's necessary. No side effects with new bugs.
+
+## Tooling
+
+  - Python: Always use `uv` (`uv run`, `uv add`, `uv sync`, `uv venv`, `uv tool install`). Never bare `python`/`pip`/`poetry`/`pipx`. If a repo uses a different tool with a lockfile, surface the mismatch before switching.

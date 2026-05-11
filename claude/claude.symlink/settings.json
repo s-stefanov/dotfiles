@@ -8,7 +8,8 @@
     "command": "~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "claude-memory@Claudest": true
+    "claude-memory@Claudest": false,
+    "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "Claudest": {
@@ -21,6 +22,12 @@
       "source": {
         "source": "github",
         "repo": "kepano/obsidian-skills"
+      }
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
       }
     }
   },
