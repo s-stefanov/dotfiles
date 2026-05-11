@@ -2,23 +2,21 @@
 #
 # Homebrew
 #
-# This installs some of the common dependencies needed (or at least desired)
-# using Homebrew.
+# Installs Homebrew on macOS or Linux/WSL. The official installer auto-detects
+# the platform and chooses the correct prefix (/opt/homebrew, /usr/local, or
+# /home/linuxbrew/.linuxbrew).
 
-# Check for Homebrew
-if test ! $(which brew)
-then
+if ! command -v brew >/dev/null 2>&1; then
   echo "  Installing Homebrew for you."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-  # Install the correct homebrew for each OS type
-  if test "$(uname)" = "Darwin"
-  then
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-  elif test "$(expr substr $(uname -s) 1 5)" = "Linux"
-  then
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install)"
-  fi
-
+  # Make brew available in this shell for the rest of the bootstrap
+  for brew_candidate in /opt/homebrew/bin/brew /home/linuxbrew/.linuxbrew/bin/brew "$HOME/.linuxbrew/bin/brew"; do
+    if [ -x "$brew_candidate" ]; then
+      eval "$("$brew_candidate" shellenv)"
+      break
+    fi
+  done
 fi
 
 # Link keg-only formulas that we want in PATH
