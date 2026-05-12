@@ -8,3 +8,11 @@ then
   alias ll="gls -l --color"
   alias la='gls -A --color'
 fi
+
+if $(eza &>/dev/null)
+then
+  alias ls="eza -F"
+  alias l="eza -lAh"
+  alias ll="eza -l"
+  alias la="eza -A"
+fi
