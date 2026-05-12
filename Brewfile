@@ -13,6 +13,7 @@ tap 'atlassian/homebrew-acli'
 brew 'acli'
 brew 'zoxide'
 brew 'fzf'
+brew 'beads'
 
 if OS.mac?
   cask_args appdir: '/Applications'
