@@ -15,6 +15,8 @@ brew 'zoxide'
 brew 'fzf'
 brew 'beads'
 brew 'eza'
+brew 'grc'
+brew 'rtk'
 
 if OS.mac?
   cask_args appdir: '/Applications'

@@ -54,3 +54,5 @@
 ## Tooling
 
   - Python: Always use `uv` (`uv run`, `uv add`, `uv sync`, `uv venv`, `uv tool install`). Never bare `python`/`pip`/`poetry`/`pipx`. If a repo uses a different tool with a lockfile, surface the mismatch before switching.
+
+@RTK.md

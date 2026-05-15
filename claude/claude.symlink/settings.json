@@ -2,13 +2,13 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "opus",
+  "model": "sonnet",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline-command.sh"
   },
   "enabledPlugins": {
-    "claude-memory@Claudest": true,
+    "claude-memory@Claudest": false,
     "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
