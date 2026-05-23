@@ -27,6 +27,29 @@ fail () {
   exit
 }
 
+prompt_profile () {
+  local localrc="$HOME/.localrc"
+
+  if [ -f "$localrc" ] && grep -q '^[[:space:]]*export[[:space:]]\+DOTFILES_PROFILE=' "$localrc"; then
+    return 0
+  fi
+
+  info 'select dotfiles profile'
+  user ' - Profile? [full/minimal] (default: full)'
+  read -e profile_choice
+  profile_choice="${profile_choice:-full}"
+
+  case "$profile_choice" in
+    full|minimal) ;;
+    *)
+      fail "unknown profile '$profile_choice' (expected: full or minimal)"
+      ;;
+  esac
+
+  printf 'export DOTFILES_PROFILE=%s\n' "$profile_choice" >> "$localrc"
+  success "profile set to $profile_choice (written to $localrc)"
+}
+
 setup_gitconfig () {
   if ! [ -f git/gitconfig.local.symlink ]
   then
@@ -128,10 +151,33 @@ link_file () {
 install_dotfiles () {
   info 'installing dotfiles'
 
+  # Pick up DOTFILES_PROFILE (and optional DOTFILES_EXTRA_TOPICS) from ~/.localrc.
+  [ -r "$HOME/.localrc" ] && . "$HOME/.localrc"
+
+  local profile="${DOTFILES_PROFILE:-full}"
+  local manifest="$DOTFILES_ROOT/profiles/$profile/topics"
+  local allowed_topics=""
+  if [ -r "$manifest" ]; then
+    allowed_topics=" $(sed -e 's/#.*$//' -e '/^[[:space:]]*$/d' "$manifest" | tr '\n' ' ')${DOTFILES_EXTRA_TOPICS:+ $DOTFILES_EXTRA_TOPICS} "
+    info "profile '$profile' — symlinking topics:$allowed_topics"
+  fi
+
   local overwrite_all=false backup_all=false skip_all=false
 
   for src in $(find -H "$DOTFILES_ROOT" -maxdepth 2 -name '*.symlink' -not -path '*.git*')
   do
+    if [ -n "$allowed_topics" ]; then
+      local rel="${src#$DOTFILES_ROOT/}"
+      local topic="${rel%%/*}"
+      case "$allowed_topics" in
+        *" $topic "*) ;;
+        *)
+          info "skipping $rel (topic '$topic' not in profile '$profile')"
+          continue
+          ;;
+      esac
+    fi
+
     local name="$(basename "${src%.*}")"
     local dst_root="$HOME/.$name"
 
@@ -149,6 +195,7 @@ install_dotfiles () {
   done
 }
 
+prompt_profile
 setup_gitconfig
 install_dotfiles
 

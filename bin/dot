@@ -40,6 +40,9 @@ done
 
 export ZSH=$HOME/.dotfiles
 
+# Pick up DOTFILES_PROFILE from ~/.localrc so non-login shells see it too.
+[ -r "$HOME/.localrc" ] && . "$HOME/.localrc"
+
 # Update dotfiles themselves
 echo "› git pull"
 git -C $ZSH pull
@@ -50,15 +53,23 @@ if [ "$(uname -s)" = "Darwin" ]; then
 	$ZSH/macos/set-hostname.sh
 fi
 
-# Install homebrew (macOS or Linux/WSL)
-$ZSH/homebrew/install.sh 2>&1
+if [ "$DOTFILES_PROFILE" = "minimal" ]; then
+	# Minimal profile: rely on the native package manager.
+	if command -v pacman >/dev/null 2>&1; then
+		echo "› sudo pacman -Syu"
+		sudo pacman -Syu
+	fi
+else
+	# Install homebrew (macOS or Linux/WSL)
+	$ZSH/homebrew/install.sh 2>&1
 
-# Upgrade homebrew
-echo "› brew update"
-brew update
+	# Upgrade homebrew
+	echo "› brew update"
+	brew update
 
-echo "› brew upgrade"
-brew upgrade
+	echo "› brew upgrade"
+	brew upgrade
+fi
 
 # Install software
 echo "› script/install"

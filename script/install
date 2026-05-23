@@ -4,10 +4,12 @@
 
 set -e
 
+# Pick up DOTFILES_PROFILE so each installer can self-guard.
+[ -r "$HOME/.localrc" ] && . "$HOME/.localrc"
+
 cd "$(dirname $0)"/..
 
-echo "› brew bundle"
-brew bundle
-
-# find the installers and run them iteratively
+# find the installers and run them iteratively. Each installer is expected to
+# self-guard on $DOTFILES_PROFILE and on the presence of its package manager,
+# so this loop stays uniform across profiles.
 find . -name install.sh | while read installer ; do sh -c "${installer}" ; done

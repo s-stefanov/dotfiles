@@ -1,0 +1,18 @@
+# pacman packages installed for DOTFILES_PROFILE=minimal.
+# One per line, comments and blank lines ignored.
+zsh
+git
+curl
+wget
+tmux
+fzf
+eza
+grc
+zoxide
+atuin
+starship
+vim
+neovim
+
+# AUR (install yay/paru first, then `yay -S <pkg>`):
+# bitwarden-cli
