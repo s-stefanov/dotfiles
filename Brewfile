@@ -17,6 +17,7 @@ brew 'beads'
 brew 'eza'
 brew 'grc'
 brew 'rtk'
+brew 'codeburn'
 
 if OS.mac?
   cask_args appdir: '/Applications'
