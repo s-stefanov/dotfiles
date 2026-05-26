@@ -1,11 +1,11 @@
 ---
-name: research
+name: stf-research
 description: Investigate a topic or bd issue in depth and record findings back into bd. Use when the user wants to research, investigate, dig into, evaluate, or gather context on something before deciding or building. Fans out parallel subagents and writes findings to bd notes/design and bd remember.
 ---
 
 # Research
 
-Investigate deeply, then **persist what you learn into bd** so it survives the session. Typically follows `/brainstorm` and feeds `/plan`.
+Investigate deeply, then **persist what you learn into bd** so it survives the session. Typically follows `/stf-brainstorm` and feeds `/stf-plan`.
 
 > **Assumes bd is initialized here.** If the repo has no `.beads/`, don't run bd commands blindly — tell the user and offer `bd init` (or proceed untracked if they prefer). bd is the source of truth for this workflow.
 
@@ -23,4 +23,4 @@ Investigate deeply, then **persist what you learn into bd** so it survives the s
 
 ## Output
 
-A focused findings summary, the **issue IDs you updated**, and remaining open questions. Suggest `/plan` to turn findings into structured work, or `/implement` if the path is now obvious.
+A focused findings summary, the **issue IDs you updated**, and remaining open questions. Suggest `/stf-plan` to turn findings into structured work, or `/stf-implement` if the path is now obvious.

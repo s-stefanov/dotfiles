@@ -1,11 +1,11 @@
 ---
-name: prime-session
+name: stf-prime-session
 description: Start a work session with full context from bd. Use at the start of a session, after /clear or compaction, or when the user asks to "prime", "get up to speed", "what's the status", or "what should I work on next". Loads ready work, in-progress items, blockers, and relevant memories into a briefing.
 ---
 
 # Prime Session
 
-Load the full state of the work into context and produce a short situational briefing. This is the entry point of the workflow — it precedes `/brainstorm`, `/plan`, and `/implement`.
+Load the full state of the work into context and produce a short situational briefing. This is the entry point of the workflow — it precedes `/stf-brainstorm`, `/stf-plan`, and `/stf-implement`.
 
 > **Assumes bd is initialized here.** If the repo has no `.beads/`, don't run bd commands blindly — tell the user and offer `bd init` (or proceed untracked if they prefer). bd is the source of truth for this workflow.
 
@@ -26,6 +26,6 @@ A tight briefing, not a dump:
 - **In flight** — in-progress issues (IDs + one line each)
 - **Ready** — top 2–3 picks from `bd ready` with why they're good next steps
 - **Blocked / stale** — anything needing a decision
-- **Suggested next** — usually `/implement <id>` (clear path), `/plan` (work needs structuring), or `/research <id>` (needs investigation)
+- **Suggested next** — usually `/stf-implement <id>` (clear path), `/stf-plan` (work needs structuring), or `/stf-research <id>` (needs investigation)
 
 Keep it scannable. The goal is for the user to know exactly where things stand and what to do next in under ten seconds.

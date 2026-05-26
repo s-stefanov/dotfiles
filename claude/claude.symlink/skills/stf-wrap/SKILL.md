@@ -1,11 +1,11 @@
 ---
-name: wrap
+name: stf-wrap
 description: Close out a work session cleanly. Use when the user says they're done, wants to wrap up, end the session, finish, or hand off. Closes completed bd issues, runs quality gates, files follow-ups, syncs bd, pushes git, and writes a handoff. Work is not complete until changes are pushed (when a remote exists).
 ---
 
 # Wrap
 
-End-of-session protocol. The tail of the workflow; `/prime-session` resumes from where this leaves off.
+End-of-session protocol. The tail of the workflow; `/stf-prime-session` resumes from where this leaves off.
 
 > **Assumes bd is initialized here.** If the repo has no `.beads/`, skip the bd steps and just run the git/quality-gate/handoff steps. bd is the source of truth for this workflow.
 
@@ -20,7 +20,7 @@ End-of-session protocol. The tail of the workflow; `/prime-session` resumes from
    - If the repo is local-only, skip pushing and **say so explicitly**. Never claim work was pushed when there is no remote.
 5. **Clean up**: clear stashes; prune merged branches and finished worktrees.
 6. **Verify**: `git status` shows clean / up to date with origin (when a remote exists).
-7. **Hand off**: short summary — what got done, what's in flight, and the suggested entry point for next session (usually `/prime-session`).
+7. **Hand off**: short summary — what got done, what's in flight, and the suggested entry point for next session (usually `/stf-prime-session`).
 
 ## Critical rules
 
