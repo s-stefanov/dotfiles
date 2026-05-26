@@ -16,8 +16,8 @@ Personal dotfiles, forked from holman/dotfiles. Topic-based layout: each top-lev
 
 `zsh/zshrc.symlink` globs `$ZSH/**/*.zsh` and sources files in this order — naming is the dispatch mechanism, so be careful when adding files:
 
-1. `**/path.zsh` — sourced first, expected to set `$PATH`/`$MANPATH`. `system/_path.zsh` is the canonical one (the leading underscore makes it sort before any sibling `path.zsh`, but it still matches the `*/path.zsh` glob).
-2. Everything else ending in `.zsh` (except `path.zsh` and `completion.zsh`).
+1. `**/path.zsh` — sourced first, expected to set `$PATH`/`$MANPATH`. Files load in glob-sorted order (by full path), so a `path.zsh` in an earlier-sorting topic dir runs before a later one. **Gotcha:** the filter is `*/path.zsh`, which `system/_path.zsh` does **not** match (the `_` breaks the `/path.zsh` suffix) — so `_path.zsh` is NOT a path-pass file; it falls into pass 2. Don't rely on `path.zsh` ordering across topics for anything but `$PATH`/`$MANPATH`, and don't branch on `$DOTFILES_OS` inside a `path.zsh` (see below).
+2. Everything else ending in `.zsh` (except `path.zsh` and `completion.zsh`), including `system/_path.zsh`.
 3. `compinit` runs.
 4. `**/completion.zsh` — sourced last so completions register after `compinit`.
 
@@ -32,7 +32,7 @@ Other conventions:
 
 ## OS detection: `$DOTFILES_OS`
 
-`system/_path.zsh` exports `$DOTFILES_OS` to one of `macos`, `wsl`, or `linux` (WSL is detected by grepping `/proc/version` for `microsoft`). Because `_path.zsh` is sourced in the first pass, every other `.zsh` file can branch on it. This is the canonical way to do OS-specific config — see `system/keys.zsh` (clipboard alias per OS), `gpg/path.zsh` and `podman/env.zsh` (WSL-only paths), and `xcode/aliases.zsh` (macOS-only). Prefer `$DOTFILES_OS` over re-running `uname` in each topic.
+`zsh/zshrc.symlink` exports `$DOTFILES_OS` to one of `macos`, `wsl`, or `linux` (WSL is detected by grepping `/proc/version` for `microsoft`). The detection runs near the top of `zshrc.symlink`, right after sourcing `~/.localrc` and **before** both source-loops, so every `.zsh` file — path-pass or not — can branch on it. (It used to live in `system/_path.zsh`, but that file loads in pass 2, after the `path.zsh` files, so any `path.zsh` branching on `$DOTFILES_OS` saw it unset in a fresh shell.) This is the canonical way to do OS-specific config — see `system/keys.zsh` (clipboard alias per OS), `gpg/path.zsh` and `podman/path.zsh` (WSL-only paths), and `xcode/aliases.zsh` (macOS-only). Prefer `$DOTFILES_OS` over re-running `uname` in each topic.
 
 ## Profiles: `$DOTFILES_PROFILE`
 

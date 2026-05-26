@@ -18,6 +18,20 @@ then
   source ~/.localrc
 fi
 
+# Detect OS once, before any topic file loads, so every *.zsh (including
+# path.zsh files) can branch on $DOTFILES_OS (macos | wsl | linux).
+# Must run before the loops below — see CLAUDE.md "OS detection".
+case "$OSTYPE" in
+  darwin*) export DOTFILES_OS=macos ;;
+  linux*)
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+      export DOTFILES_OS=wsl
+    else
+      export DOTFILES_OS=linux
+    fi
+    ;;
+esac
+
 # all of our zsh files
 typeset -U config_files
 config_files=($ZSH/**/*.zsh)
