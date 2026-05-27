@@ -30,7 +30,7 @@ Once the user confirms, write the agreed framing into bd:
     --description="<problem statement + scope/non-goals>" \
     --design="<chosen approach + rationale, including approaches considered>"
   ```
-- **Children = only the idea titles that SURVIVED the dialogue.** Keep them lightweight: terse titles parented to the epic via `--type=task --deps "parent-child:<epic-id>"`. The parent link is structural — it's what lets `/stf-plan` find them via `bd children <epic>`. Leave priority to bd's default; setting it is `/stf-plan`'s job. This is **not** a dump — discarded ideas stay discarded.
+- **Children = only the idea titles that SURVIVED the dialogue.** Keep them lightweight: terse titles parented to the epic via `--type=task --parent <epic-id>`. The parent link is structural — it's what lets `/stf-plan` find them via `bd children <epic>`, and it gives children hierarchical IDs like `<epic-id>.1`. Leave priority to bd's default; setting it is `/stf-plan`'s job. This is **not** a dump — discarded ideas stay discarded.
 - `bd remember "<insight>"` for any cross-cutting realization worth keeping across sessions.
 - Self-review the epic with `bd create --validate` / `bd lint` — catch placeholders, contradictions, ambiguity, or scope creep before handing off. **Expected:** lint will warn `Missing: ## Success Criteria` — that's by design here; success/acceptance criteria belong to `/stf-plan`. Do **not** silence it by adding criteria to the epic.
 
