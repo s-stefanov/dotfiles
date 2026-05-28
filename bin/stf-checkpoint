@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# stf-checkpoint <work-id> "<question>" [--options "a,b,c"] [--priority P0..P4]
+#
+# Interactive-when-attended / async-fallback checkpoint for the autonomous loop
+# (personal-dev-workflow-zhn, issue 8ye).
+#
+# ALWAYS dual-writes first (creates human-labeled question-bead via bd-ask-human,
+# drops back-reference comment on work-bead). Then signals attended vs. unattended
+# mode via exit code so the caller can bifurcate behavior.
+#
+# ATTENDED DETECTION:
+#   Priority order:
+#     1. STF_LOOP_ATTENDED env var (set by /stf-loop for same-process bash calls)
+#     2. <repo-root>/.claude/stf-loop-attended file (written by /stf-loop before invoking
+#        /stf-implement; read here because env vars don't persist across Claude Bash calls)
+#     3. Default: 1 (attended) — safe for direct /stf-implement invocations
+#
+#   /stf-loop writes "0" or "1" to .claude/stf-loop-attended before each pass and
+#   removes it on exit. The file survives across Bash tool invocations; the env var
+#   does not (Claude Code Bash shell state does not persist between calls).
+#   Do NOT use --attended/--unattended flags — mode is set by the loop, not the call site.
+#
+# USAGE:
+#   stf-checkpoint <work-id> "<question>" [--options "a,b,c"] [--priority P0..P4]
+#
+# FLAGS:
+#   --options "a,b,c"   Comma-separated answer options (forwarded to bd-ask-human)
+#   --priority P0..P4   Priority for the question-bead (forwarded to bd-ask-human)
+#
+# OUTPUT (stdout):
+#   The question-bead ID (one line). Capture with Q_ID=$(stf-checkpoint ...).
+# OUTPUT (stderr):
+#   Mode signal + human-readable resume instructions.
+#
+# EXIT CODES:
+#   0   Dual-write complete, attended mode — caller must present AskUserQuestion,
+#       then close the Q-bead to record the answer and unblock the work-bead.
+#   3   Dual-write complete, unattended mode — caller should terminate this loop
+#       pass cleanly with reason "human gate (bead <Q_ID>)".
+#   2   Usage / argument error (dual-write was NOT performed).
+
+set -euo pipefail
+
+usage() {
+  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+  exit "${1:-2}"
+}
+
+[[ $# -lt 2 ]] && usage 2
+
+WORK_ID="$1"; shift
+
+# Pass all remaining args through to bd-ask-human unchanged
+BD_ARGS=("$@")
+
+# Dual-write: ALWAYS happens first, regardless of mode.
+# bd-ask-human creates the question-bead (labeled 'human'), wires it as a
+# blocker of $WORK_ID, and drops a back-reference comment on $WORK_ID.
+Q_ID="$(bd-ask-human "$WORK_ID" "${BD_ARGS[@]}")"
+
+# Print Q_ID on stdout for caller capture
+echo "$Q_ID"
+
+# Attended detection: env var → file fallback → default 1 (attended)
+_ATTENDED_FILE="$(git rev-parse --show-toplevel 2>/dev/null || echo .)/.claude/stf-loop-attended"
+if [[ -n "${STF_LOOP_ATTENDED:-}" ]]; then
+  ATTENDED="$STF_LOOP_ATTENDED"
+elif [[ -f "$_ATTENDED_FILE" ]]; then
+  ATTENDED="$(tr -d '[:space:]' < "$_ATTENDED_FILE")"
+else
+  ATTENDED=1
+fi
+
+if [[ "$ATTENDED" == "1" || "$ATTENDED" == "true" ]]; then
+  {
+    echo ""
+    echo "ATTENDED mode. Dual-write complete — question-bead: $Q_ID"
+    echo "Next: present question to user (AskUserQuestion), then close $Q_ID to record answer."
+    echo "  bd comment $Q_ID \"<answer>\" && bd close $Q_ID --reason \"Responded\""
+    echo "  (or: bd human respond $Q_ID -r \"<answer>\"  — if bd-human-respond is fixed)"
+  } >&2
+  exit 0
+else
+  {
+    echo ""
+    echo "UNATTENDED mode. Dual-write complete — question-bead: $Q_ID"
+    echo "Loop should terminate this pass. Resume with:"
+    echo "  bd human respond $Q_ID -r \"<answer>\""
+    echo "  (workaround: bd comment $Q_ID \"<answer>\" && bd close $Q_ID --reason \"Responded\")"
+  } >&2
+  exit 3
+fi

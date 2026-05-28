@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# bd-ask-human <work-id> <question text...>
+#
+# Pause/resume primitive for the autonomous loop (personal-dev-workflow-zhn).
+#
+# Creates a question-bead labeled 'human' as a blocker of <work-id>, and drops
+# a back-reference comment on <work-id>. The work-bead drops out of `bd ready`
+# until a human answers the question with `bd human respond <q-id> -r "<reply>"`.
+# When the question closes, the work-bead becomes ready again.
+#
+# WHY a separate question-bead (and not labeling the work-bead directly):
+#   `bd human respond` adds a comment AND CLOSES the bead. Labeling the
+#   work-bead would close in-progress work on response. The question is its
+#   own bead, owned by the blocker; closing it unblocks the work.
+#
+# USAGE:
+#   bd-ask-human <work-id> "<question>"
+#   bd-ask-human <work-id> "Use OAuth2 or session cookies?" --options "OAuth2,Cookies"
+#
+# FLAGS:
+#   --options "a,b,c"   Comma-separated answer options, rendered in the question
+#   --priority P0..P4   Priority for the question-bead (default: inherit work-bead)
+#
+# OUTPUT (stdout):
+#   The question-bead ID (one line, suitable for piping/capture).
+# OUTPUT (stderr):
+#   Human-readable confirmation + resume command hint.
+
+set -euo pipefail
+
+usage() {
+  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+  exit "${1:-2}"
+}
+
+[[ $# -lt 2 ]] && usage
+
+WORK_ID="$1"; shift
+OPTIONS=""
+PRIORITY=""
+
+# Parse flags interleaved with question text
+QUESTION_PARTS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --options)   OPTIONS="${2:?--options needs a value}"; shift 2 ;;
+    --priority)  PRIORITY="${2:?--priority needs a value}"; shift 2 ;;
+    --help|-h)   usage 0 ;;
+    *)           QUESTION_PARTS+=("$1"); shift ;;
+  esac
+done
+
+QUESTION="${QUESTION_PARTS[*]:-}"
+[[ -z "$QUESTION" ]] && { echo "error: question text required" >&2; usage 2; }
+
+# Verify work-bead exists (fail fast with a useful message)
+if ! bd show "$WORK_ID" >/dev/null 2>&1; then
+  echo "error: work-bead '$WORK_ID' not found" >&2
+  exit 1
+fi
+
+# Inherit priority from work-bead unless overridden
+if [[ -z "$PRIORITY" ]]; then
+  PRIORITY="$(bd show "$WORK_ID" --json 2>/dev/null \
+              | grep -oE '"priority"[[:space:]]*:[[:space:]]*[0-9]' \
+              | head -1 | grep -oE '[0-9]' || echo 2)"
+fi
+
+# Build the question-bead description
+DESC="Question raised while working on $WORK_ID."
+if [[ -n "$OPTIONS" ]]; then
+  DESC+=$'\n\nOPTIONS:'
+  IFS=',' read -r -a OPT_ARRAY <<< "$OPTIONS"
+  for opt in "${OPT_ARRAY[@]}"; do
+    DESC+=$'\n  - '"${opt# }"
+  done
+fi
+DESC+=$'\n\nResume after answering:\n  bd human respond <this-id> -r "<reply>"\n  # workaround if "storage is nil": bd comment <this-id> "<reply>" && bd close <this-id> --reason "Responded"'
+
+# Create the question-bead labeled 'human' (decision type — it's a checkpoint)
+Q_ID="$(bd create "$QUESTION" \
+  --type decision \
+  --labels human \
+  --priority "$PRIORITY" \
+  --description "$DESC" \
+  --parent "$WORK_ID" \
+  --silent)"
+
+# Wire it as a blocker of the work-bead
+bd dep add "$WORK_ID" "$Q_ID" >/dev/null
+
+# Back-reference comment on the work-bead
+bd comment "$WORK_ID" "[bd-ask-human] Paused — waiting on human answer at $Q_ID: $QUESTION" >/dev/null
+
+# stdout: question-bead ID (for scripting); stderr: human-readable summary
+echo "$Q_ID"
+{
+  echo "Asked human about $WORK_ID → question-bead $Q_ID (labeled 'human')."
+  echo "Work-bead now blocked. Resume with:"
+  echo "  bd human respond $Q_ID -r \"<reply>\""
+  echo "(workaround if 'storage is nil':  bd comment $Q_ID \"<reply>\" && bd close $Q_ID --reason \"Responded\")"
+} >&2
