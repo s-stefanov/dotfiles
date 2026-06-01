@@ -79,11 +79,11 @@ exit_code=$?
 ```
 
 **Attended detection** — priority order (Claude Code Bash shell state does not persist across tool calls, so env var alone is unreliable):
-1. `STF_LOOP_ATTENDED` env var — set by `/stf-loop` in same-process bash calls
-2. `.claude/stf-loop-attended` file — written by `/stf-loop` before each pass; survives across Bash tool calls
+1. `STF_LOOP_ATTENDED` env var — set explicitly for same-process bash calls
+2. `.claude/stf-loop-attended` file — fallback for environments that write it; survives across Bash tool calls
 3. Default: `1` (attended) — safe default for direct `/stf-implement` invocations
 
-`/stf-loop` writes `"0"` or `"1"` to `.claude/stf-loop-attended` at the start of each pass and removes it on exit.
+Note: with the `bd-worker` subagent path, stf-loop no longer writes the attended-flag file. The subagent always takes the unattended (exit 3) path directly.
 
 **Attended path (exit 0):**
 1. Dual-write already done.

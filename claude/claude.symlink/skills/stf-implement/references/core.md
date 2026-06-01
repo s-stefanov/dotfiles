@@ -17,7 +17,14 @@ Shared by the user-facing skill (`SKILL.md`) and the headless subagent (`~/.clau
    - Run tests / linters / build.
    - Diff behavior vs. `main` when relevant.
    - Never close on unverified work.
-6. **Close**: `bd close <id> --suggest-next` to reveal newly unblocked work. `bd remember "<lesson>"` for any non-obvious thing learned.
+6. **Advisor gate** — call `advisor()` unconditionally (not "consider calling") before closing:
+   - Record the verdict verbatim: `bd comment <id> "advisor: <verdict>"`
+   - **Pushback** is defined as: advisor names a specific failure, disagreement, or incomplete work.
+   - If pushback detected:
+     - Loop context: `bd-loop-fail <id> "<summary>"` — do NOT call `bd close`.
+     - Attended context: `AskUserQuestion(...)` — do NOT call `bd close`.
+   - Only proceed to Step 7 when the advisor verdict is clean (no pushback).
+7. **Close**: `bd close <id> --suggest-next` to reveal newly unblocked work. `bd remember "<lesson>"` for any non-obvious thing learned.
 
 ---
 
@@ -68,9 +75,9 @@ bd human respond "$Q_ID" -r "<answer>"
 
 ### Attended detection
 
-`stf-checkpoint` reads `STF_LOOP_ATTENDED` (set by `/stf-loop` based on invocation mode).
+`stf-checkpoint` reads `STF_LOOP_ATTENDED` to determine attended/unattended mode.
 - Unset (direct `/stf-implement` invocation) → defaults to attended (exit 0).
-- `/stf-loop` must set `STF_LOOP_ATTENDED=0` for ScheduleWakeup passes.
+- `bd-worker` subagent always takes exit 3 (unattended) — it does not check this flag, but the default (attended) is safe since `bd-worker` explicitly handles the exit 3 path unconditionally.
 
 See `bd-human-pause-primitive.md` in this directory for the full design, back-pressure semantics, and upstream-bug workaround.
 

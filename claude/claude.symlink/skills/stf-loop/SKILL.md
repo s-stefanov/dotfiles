@@ -1,11 +1,11 @@
 ---
 name: stf-loop
-description: Drive the autonomous bd-integrated implementation loop for a bd epic. Use when the user types `/stf-loop <epic-id>` to automatically burn down all ready work in an epic by invoking /stf-implement per bead, with termination checks, failure escalation, and human checkpoints. Do NOT invoke for one-off tasks — use /stf-implement directly for single beads.
+description: Drive the autonomous bd-integrated implementation loop for a bd epic. Use when the user types `/stf-loop <epic-id>` to automatically burn down all ready work in an epic by spawning a bd-worker subagent per bead, with termination checks, failure escalation, and human checkpoints. Do NOT invoke for one-off tasks — use /stf-implement directly for single beads.
 ---
 
 # stf-loop
 
-Autonomous loop driver for a bd epic. Invokes `/stf-implement` on each ready descendant of the given epic, handling failure via `bd-loop-fail`, human checkpoints via `stf-checkpoint`, and termination via `stf-loop-termcheck`. Runs all beads in-session for attended use; uses ScheduleWakeup for unattended continuation.
+Autonomous loop driver for a bd epic. Spawns a `bd-worker` subagent per ready descendant of the given epic, handling failure via `bd-loop-fail`, human checkpoints via `stf-checkpoint`, and termination via `stf-loop-termcheck`. Runs all beads in-session for attended use; uses ScheduleWakeup for unattended continuation.
 
 ## Arguments
 
@@ -70,19 +70,6 @@ Single bead per invocation, then yield:
 
 Parse `<epic-id>` from ARGUMENTS. Detect `--unattended` flag.
 
-Set attended mode for this pass. **Use a file, not an env var** — Claude Code Bash tool shell state does not persist across tool calls, so `export STF_LOOP_ATTENDED=0` in one call is invisible to subsequent calls. Instead write to `.claude/stf-loop-attended` (stf-checkpoint reads this file as a fallback):
-
-```bash
-# Write attended flag for stf-checkpoint to read (persists across Bash calls)
-echo "1" > .claude/stf-loop-attended   # or "0" if --unattended
-```
-
-Clean up on loop exit (complete, waiting-on-human, circuit-breaker, error):
-
-```bash
-rm -f .claude/stf-loop-attended
-```
-
 Load or initialize state file. Parse `--max-failures N` (default 2). Parse `--max-iterations N` (default 100); store in state file (default if missing for backward compat).
 
 ### Step 0.5: Live snapshot + circuit-breaker check
@@ -130,9 +117,8 @@ if [[ "$ITER_COUNT" -ge "$MAX_ITERATIONS" ]]; then
   echo "[stf-loop] STOPPED: circuit-breaker"
   echo "  circuit breaker tripped at ${ITER_COUNT}/${MAX_ITERATIONS}"
   echo "  Pass count: ${ITER_COUNT}"
-  # Write state, clean up, no ScheduleWakeup
+  # Write state, no ScheduleWakeup
   update_state last_decision=circuit-breaker last_pass_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  rm -f .claude/stf-loop-attended
   exit 0
 fi
 ```
@@ -189,53 +175,93 @@ If `TARGET` is still empty: log warning and skip this pass (loop state is incons
 
 Emit: `[stf-loop]   target: <TARGET>`
 
-### Step 3: Invoke /stf-implement
+### Step 3: Invoke bd-worker subagent
 
-Invoke the stf-implement skill with the target bead ID and snapshot prefix:
+Spawn a fresh subagent context per bead. Capture the return value for Step 4:
 
 ```
-Skill("stf-implement", args="<TARGET>\n[loop-snapshot] <SNAPSHOT>")
+SUBAGENT_RETURN = Agent(subagent_type='bd-worker', prompt='<TARGET>\n[loop-snapshot] <SNAPSHOT>')
 ```
 
-Putting the bead ID first preserves stf-implement's existing arg-parsing (it reads the first token as the ID). The `[loop-snapshot]` line is context-only — it orients the agent within the loop's current state without influencing the ready-picker or termination check.
-
-`STF_LOOP_ATTENDED` exported in Step 0 is visible to any bash commands run during stf-implement (same persistent shell session), including `stf-checkpoint` invocations.
+Putting the bead ID first preserves bd-worker's arg-parsing (reads first token as the ID). The `[loop-snapshot]` line is context-only — it orients the subagent within the loop's current state without influencing the ready-picker or termination check.
 
 ### Step 4: Evaluate outcome
 
-After stf-implement returns, check bead status in bd:
+After the subagent returns, parse the optional JSON return for routing hints, then read authoritative status from bd.
+
+**Parse subagent JSON return (best-effort):**
+
+Scan `SUBAGENT_RETURN` for the last JSON object containing a `status` key (last-match rule handles markdown noise and multiple `{...}` fragments):
+
+```bash
+SUBAGENT_JSON=$(python3 -c "
+import json, sys
+raw = sys.stdin.read()
+decoder = json.JSONDecoder()
+result = None
+i = 0
+while i < len(raw):
+    try:
+        obj, end = decoder.raw_decode(raw, i)
+        if isinstance(obj, dict) and 'status' in obj:
+            result = json.dumps(obj)
+        i = end
+    except Exception:
+        i += 1
+print(result or '')
+" 2>/dev/null <<< "$SUBAGENT_RETURN")
+```
+
+Extract routing fields:
+
+```bash
+if [[ -n "$SUBAGENT_JSON" ]]; then
+    Q_ID=$(echo "$SUBAGENT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('question_bead',''))" 2>/dev/null || echo "")
+    FILES_CHANGED=$(echo "$SUBAGENT_JSON" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('files_changed',[])))" 2>/dev/null || echo "[]")
+else
+    echo "[stf-loop]   parse-failure: JSON extraction failed, falling back to bd status"
+    Q_ID=""
+    FILES_CHANGED="unknown"
+fi
+```
+
+**Read authoritative status from bd (bd is source of truth; JSON is routing aid):**
 
 ```bash
 STATUS=$(bd show <TARGET> --json \
   | python3 -c "import json,sys; d=json.load(sys.stdin); item=d[0] if isinstance(d,list) else d; print(item.get('status',''))")
 ```
 
+**Log files_changed for observability** (always, even when `unknown` from a parse failure):
+
+```
+[stf-loop]   files_changed: <FILES_CHANGED>
+```
+
 **`closed`** — success:
 - Emit `[stf-loop]   outcome: closed`
 
-**`in_progress` or `open` with a human-labeled blocker** — human gate (`stf-checkpoint` already dual-wrote inside stf-implement):
-- Attended: stf-implement surfaced question via AskUserQuestion and recorded the answer; loop can continue immediately.
-- Unattended: stf-implement terminated cleanly after dual-write (stf-checkpoint exited 3); next pass will skip the blocked bead.
-- Emit `[stf-loop]   outcome: human-gate`
+**Not `closed`** — distinguish human-gate from failure. Primary signal: `Q_ID` from JSON `question_bead`. Fallback when JSON parse failed or `question_bead` absent: check bd for any blocker:
 
-Detect human blocker:
 ```bash
-HAS_HUMAN_BLOCKER=$(bd show <TARGET> --json | python3 -c "
-import json,sys,subprocess
+if [[ -z "$Q_ID" ]]; then
+    Q_ID=$(bd show <TARGET> --json | python3 -c "
+import json,sys
 d=json.load(sys.stdin)
 item=d[0] if isinstance(d,list) else d
-# check if any blocker has human label
 blockers = item.get('blockers',[]) or []
-print('yes' if blockers else 'no')
-" 2>/dev/null || echo "no")
+print(blockers[0] if blockers else '')
+" 2>/dev/null || echo "")
+fi
 ```
 
-(If the status check is ambiguous, lean on the next termcheck pass to classify correctly.)
+If `Q_ID` is non-empty → human gate (`stf-checkpoint` already dual-wrote inside the subagent; next pass will skip the blocked bead):
+- Emit `[stf-loop]   outcome: human-gate on <TARGET> → <Q_ID> awaiting`
 
-**Not closed, no human blocker** — implementation failure:
+If `Q_ID` is still empty → implementation failure:
 
 ```bash
-SUMMARY="stf-implement did not close bead <TARGET> (status: $STATUS)"
+SUMMARY="bd-worker did not close bead <TARGET> (status: $STATUS)"
 bd-loop-fail <TARGET> "$SUMMARY" --max <max-failures>
 FAIL_EXIT=$?
 ```
@@ -243,7 +269,7 @@ FAIL_EXIT=$?
 - Exit 0: recorded, retry next pass. Emit `[stf-loop]   outcome: failure-recorded (will retry)`.
 - Exit 1: escalated, bead now human-labeled and blocked. Emit `[stf-loop]   outcome: escalated (human-labeled)`.
 
-**After all outcome branches** — increment the pass counter unconditionally (counts every stf-implement invocation, regardless of outcome):
+**After all outcome branches** — increment the pass counter unconditionally (counts every subagent invocation, regardless of outcome):
 
 ```bash
 ITER_COUNT=$((ITER_COUNT + 1))
@@ -299,8 +325,11 @@ Each pass emits to stdout:
 [stf-loop] pass <N> epic=<id> attended=<true|false> => <decision>
 [stf-loop]   snapshot: epic=<id> iter=<N>/<MAX> open=<X> in_progress=<Y> human=<Z>
 [stf-loop]   target: <bead-id>
-[stf-loop]   outcome: <closed|human-gate|failure-recorded|escalated>
+[stf-loop]   files_changed: <["path/a","path/b"]|[]|unknown>
+[stf-loop]   outcome: <closed|human-gate on <TARGET> → <Q_ID> awaiting|failure-recorded|escalated>
 ```
+
+`files_changed` is `unknown` when JSON parse failed; `[]` when the subagent made no file changes.
 
 Terminal stop:
 ```
@@ -326,5 +355,5 @@ Re-launching `/stf-loop <epic-id>` is safe at any point:
 - All authoritative state is in bd — no in-memory cursor to resume from.
 - Termination check re-queries bd fresh each pass.
 - `bd ready --parent` returns open beads; the `in_progress` fallback (Step 2) handles beads interrupted mid-session.
-- `bd update --claim` inside stf-implement is idempotent if the bead is already in_progress.
+- `bd update --claim` inside bd-worker is idempotent if the bead is already in_progress.
 - `iter_count` accumulates across ScheduleWakeup-driven re-invocations (unattended mode) so the CB fires at the right point even if the loop spans multiple wakeups. It resets each loop cycle — the state file is deleted on clean termination (`complete` / `waiting-on-human`) or manual delete.
