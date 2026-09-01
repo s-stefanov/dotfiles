@@ -45,7 +45,7 @@ The choice is persisted as `export DOTFILES_PROFILE=<choice>` in `~/.localrc`. T
 
 ## Machine-specific config
 
-- **`~/.localrc`** — sourced first by `zshrc.symlink` if it exists. Secrets and per-machine env go here; intentionally outside the repo.
+- **`~/.localrc`** — sourced first by `zshenv.symlink` if it exists, so it's available to every shell, not just interactive ones. Secrets and per-machine env go here; intentionally outside the repo.
 - **`git/gitconfig.local.symlink`** — generated from the `.example` during bootstrap (prompts for name/email). Gitignored.
 
 ## Credit

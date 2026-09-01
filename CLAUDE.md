@@ -14,12 +14,17 @@ Personal dotfiles, forked from holman/dotfiles. Topic-based layout: each top-lev
 
 ## File-extension conventions (load order matters)
 
-`zsh/zshrc.symlink` globs `$ZSH/**/*.zsh` and sources files in this order — naming is the dispatch mechanism, so be careful when adding files:
+Two symlinked files split the work — naming is the dispatch mechanism, so be careful when adding files:
 
-1. `**/path.zsh` — sourced first, expected to set `$PATH`/`$MANPATH`. Files load in glob-sorted order (by full path), so a `path.zsh` in an earlier-sorting topic dir runs before a later one. **Gotcha:** the filter is `*/path.zsh`, which `system/_path.zsh` does **not** match (the `_` breaks the `/path.zsh` suffix) — so `_path.zsh` is NOT a path-pass file; it falls into pass 2. Don't rely on `path.zsh` ordering across topics for anything but `$PATH`/`$MANPATH`, and don't branch on `$DOTFILES_OS` inside a `path.zsh` (see below).
-2. Everything else ending in `.zsh` (except `path.zsh` and `completion.zsh`), including `system/_path.zsh`.
-3. `compinit` runs.
-4. `**/completion.zsh` — sourced last so completions register after `compinit`.
+- **`zsh/zshenv.symlink`** (→ `~/.zshenv`) is read by zsh for **every** shell — interactive, non-interactive, login, or a one-off script/SSH command (`.zshrc` is skipped for non-interactive shells, which is why Homebrew/node etc. used to be invisible to those). It sources `~/.localrc`, detects `$DOTFILES_OS`, then globs `$ZSH/**/*.zsh` and sources:
+  1. `**/path.zsh` — expected to set `$PATH`/`$MANPATH` for one topic's tool. Files load in glob-sorted order (by full path).
+  2. `**/env.zsh` — other tool env vars that also need to exist outside interactive shells (e.g. `gpg/env.zsh`'s `$GPG_TTY`, `podman/env.zsh`'s `$DOCKER_HOST`). Any `env.zsh`/`path.zsh` file must tolerate running with no controlling terminal — guard tty-dependent calls with `[[ -t 0 ]]`.
+- **`zsh/zshrc.symlink`** (→ `~/.zshrc`) is read only for **interactive** shells, after `.zshenv` has already run — so `$ZSH`, `$DOTFILES_OS`, `~/.localrc`, and every `path.zsh`/`env.zsh` are already sourced by the time it starts. It globs `$ZSH/**/*.zsh` again for the interactive-only remainder:
+  3. Everything else ending in `.zsh` (except `path.zsh`, `env.zsh`, and `completion.zsh`), including `system/_path.zsh`. **Gotcha:** the filter is `*/path.zsh`, which `system/_path.zsh` does **not** match (the `_` breaks the `/path.zsh` suffix) — so `_path.zsh` is NOT a path-pass file, it's pass 3, and it deliberately stays interactive-only: it prepends a relative `./bin` to `$PATH`, which is fine for a shell you're sitting at but not something to expose to arbitrary non-interactive/automated invocations. Don't rely on `path.zsh` ordering across topics for anything but `$PATH`/`$MANPATH`.
+  4. `compinit` runs.
+  5. `**/completion.zsh` — sourced last so completions register after `compinit`.
+
+Rule of thumb when adding a file: does it need to work in a non-interactive shell (PATH, env vars for a CLI tool)? Name it `path.zsh`/`env.zsh`. Is it interactive-only (aliases, prompt, keybindings, completions)? Any other `.zsh` name.
 
 Other conventions:
 
@@ -32,7 +37,7 @@ Other conventions:
 
 ## OS detection: `$DOTFILES_OS`
 
-`zsh/zshrc.symlink` exports `$DOTFILES_OS` to one of `macos`, `wsl`, or `linux` (WSL is detected by grepping `/proc/version` for `microsoft`). The detection runs near the top of `zshrc.symlink`, right after sourcing `~/.localrc` and **before** both source-loops, so every `.zsh` file — path-pass or not — can branch on it. (It used to live in `system/_path.zsh`, but that file loads in pass 2, after the `path.zsh` files, so any `path.zsh` branching on `$DOTFILES_OS` saw it unset in a fresh shell.) This is the canonical way to do OS-specific config — see `system/keys.zsh` (clipboard alias per OS), `gpg/path.zsh` and `podman/path.zsh` (WSL-only paths), and `xcode/aliases.zsh` (macOS-only). Prefer `$DOTFILES_OS` over re-running `uname` in each topic.
+`zsh/zshenv.symlink` exports `$DOTFILES_OS` to one of `macos`, `wsl`, or `linux` (WSL is detected by grepping `/proc/version` for `microsoft`). Detection happens in `.zshenv`, right after sourcing `~/.localrc` and before it globs for `path.zsh`/`env.zsh`, so it's set before any topic file loads — including for non-interactive shells that never read `.zshrc` at all. This is the canonical way to do OS-specific config — see `system/keys.zsh` (clipboard alias per OS), `gpg/env.zsh` and `podman/env.zsh` (WSL-only env vars), and `xcode/aliases.zsh` (macOS-only). Prefer `$DOTFILES_OS` over re-running `uname` in each topic.
 
 ## Profiles: `$DOTFILES_PROFILE`
 
@@ -57,12 +62,12 @@ See `profiles/README.md` for the manifest format and how to add a profile.
 
 ## Local / machine-specific config
 
-- `~/.localrc` — sourced first by `zshrc.symlink` if present. Put secrets and machine-specific env here; it is intentionally outside the repo.
+- `~/.localrc` — sourced first by `zshenv.symlink` if present, so it's available to every shell (not just interactive ones). Put secrets and machine-specific env here; it is intentionally outside the repo.
 - `git/gitconfig.local.symlink` — generated by `script/bootstrap` from `gitconfig.local.symlink.example` (prompts for name/email, picks `osxkeychain` on Darwin). Gitignored. The committed `gitconfig.symlink` `[include]`s it.
 
 ## Adding a new topic
 
-To add e.g. a `rust` topic: create `rust/`, drop `aliases.zsh` / `env.zsh` / `path.zsh` as needed, add `rust/install.sh` if it needs install steps, and any `rust/*.symlink` for dotfiles. No registration step — the loader picks it up by filename.
+To add e.g. a `rust` topic: create `rust/`, drop `aliases.zsh` / `env.zsh` / `path.zsh` as needed (`path.zsh`/`env.zsh` run in every shell via `.zshenv`; anything else is interactive-only via `.zshrc`), add `rust/install.sh` if it needs install steps, and any `rust/*.symlink` for dotfiles. No registration step — the loader picks it up by filename.
 
 ## macOS vs other platforms
 
