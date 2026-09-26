@@ -8,7 +8,17 @@ fi
 export PROJECTS=~/dev
 
 # $ZSH, $DOTFILES_OS, ~/.localrc, and every path.zsh/env.zsh file are already
-# sourced by .zshenv, which zsh reads before .zshrc for every shell.
+# sourced by .zshenv, which zsh reads before .zshrc for every shell -- unless
+# ~/.zshenv is missing (new machine, or bootstrap not re-run since the split).
+# Without this guard $ZSH is empty and the globs below become /**/*.zsh, which
+# walks the entire filesystem. Test with -d, not -n: $ZSH is also oh-my-zsh's.
+[[ -d $ZSH/zsh ]] || source "$HOME/.dotfiles/zsh/zshenv.symlink"
+
+# macOS only: /etc/zprofile runs path_helper AFTER .zshenv on every login shell
+# (i.e. every Terminal tab), which reorders $PATH so /usr/bin beats anything
+# .zshenv set. Re-prepend what .zshenv built; `typeset -U path` dedupes, so
+# path_helper's own additions stay at the tail. No-op on non-login shells.
+(( $#dotfiles_path )) && path=($dotfiles_path $path)
 
 # all of our zsh files
 typeset -U config_files

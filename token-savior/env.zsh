@@ -1,0 +1,3 @@
+export TS_BASH_COMPACT=1
+export TS_BASH_REWRITE=1
+export TOKEN_SAVIOR_PROFILE=optimized

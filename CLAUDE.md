@@ -24,6 +24,10 @@ Two symlinked files split the work — naming is the dispatch mechanism, so be c
   4. `compinit` runs.
   5. `**/completion.zsh` — sourced last so completions register after `compinit`.
 
+Adding a **new `*.symlink`** needs `script/bootstrap` re-run on each machine — `bin/dot` only runs
+`script/install`, which never creates symlinks. `.zshrc` guards against a missing `~/.zshenv`
+(`[[ -d $ZSH/zsh ]] || source ...`) because an unset `$ZSH` turns its glob into `/**/*.zsh`.
+
 Rule of thumb when adding a file: does it need to work in a non-interactive shell (PATH, env vars for a CLI tool)? Name it `path.zsh`/`env.zsh`. Is it interactive-only (aliases, prompt, keybindings, completions)? Any other `.zsh` name.
 
 Other conventions:
@@ -31,7 +35,7 @@ Other conventions:
 - `topic/*.symlink` → symlinked to `$HOME/.<basename-without-ext>` by `script/bootstrap` (e.g. `git/gitconfig.symlink` → `~/.gitconfig`). Only files at depth ≤ 2 are picked up (`-maxdepth 2`).
 - If a `*.symlink` is a **directory** (e.g. `claude/claude.symlink/`), bootstrap creates `$HOME/.<name>` as a real directory and symlinks each child file individually into it. This lets a topic ship a populated dotdirectory without clobbering anything the user adds locally to that same dir.
 - `topic/install.sh` → executed by `script/install`. Use `.sh` (not `.zsh`) so it does NOT get auto-sourced into the shell.
-- `bin/*` is prepended to `$PATH` via `system/_path.zsh`; drop executables here to make them globally available.
+- `bin/*` is prepended to `$PATH` via `zsh/path.zsh`, so it reaches non-interactive shells too; drop executables here to make them globally available.
 - `functions/*` is added to `fpath` and autoloaded (`zsh/config.zsh`); files are zsh autoload functions, not scripts — no shebang, just the function body.
 - `zsh/fpath.zsh` also adds every top-level topic directory to `fpath`, so any topic can ship completion functions or autoloaded functions alongside its `.zsh` files.
 

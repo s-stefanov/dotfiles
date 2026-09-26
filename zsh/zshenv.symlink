@@ -48,3 +48,7 @@ do
 done
 
 unset zshenv_files
+
+# Snapshot of the $PATH we just built, so .zshrc can restore our precedence
+# after macOS's /etc/zprofile path_helper reorders it. See zshrc.symlink.
+typeset -ga dotfiles_path=($path)
