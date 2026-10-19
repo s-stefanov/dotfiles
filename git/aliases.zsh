@@ -1,9 +1,9 @@
 # Use `hub` as our git wrapper:
 #   http://defunkt.github.com/hub/
-hub_path=$(which hub)
-if (( $+commands[hub] ))
+# (skipped on WSL; $commands[hub] avoids forking `which` on every shell)
+if [[ "$DOTFILES_OS" != "wsl" ]] && (( $+commands[hub] ))
 then
-  alias git=$hub_path
+  alias git=$commands[hub]
 fi
 
 # The rest of my fun git aliases

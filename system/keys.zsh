@@ -4,7 +4,7 @@ case "$DOTFILES_OS" in
     alias pubkey="more $HOME/.ssh/id_ed25519.pub | pbcopy | echo '=> Public key copied to pasteboard.'"
     ;;
   wsl)
-    alias pubkey="more $HOME/.ssh/id_ed25519.pub | clip.exe && echo '=> Public key copied to pasteboard.'"
+    alias pubkey="more $HOME/.ssh/id_ed25519.pub | /mnt/c/WINDOWS/system32/clip.exe && echo '=> Public key copied to pasteboard.'"
     ;;
   linux)
     if (( $+commands[wl-copy] )); then
