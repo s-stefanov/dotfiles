@@ -1,0 +1,8 @@
+# cached-init <name> <cmd...>: source the output of <cmd>, cached under
+# ~/.cache/zsh-init/<name>.zsh. Regenerated when the binary is newer than the cache.
+local f=${XDG_CACHE_HOME:-$HOME/.cache}/zsh-init/$1.zsh bin=$commands[$2]
+[[ -n $bin ]] || return
+if [[ ! -s $f || $bin -nt $f ]]; then
+  mkdir -p $f:h && "${@:2}" >| $f.tmp 2>/dev/null && mv $f.tmp $f || { rm -f $f.tmp; return 1 }
+fi
+source $f

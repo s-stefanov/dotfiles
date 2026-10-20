@@ -1,7 +1,7 @@
 # grc overides for ls
 #   Made possible through contributions from generous benefactors like
 #   `brew install coreutils`
-if $(gls &>/dev/null)
+if (( $+commands[gls] ))
 then
   alias ls="gls -F --color"
   alias l="gls -lAh --color"
@@ -9,10 +9,15 @@ then
   alias la='gls -A --color'
 fi
 
-if $(eza &>/dev/null)
+if (( $+commands[eza] ))
 then
   alias ls="eza -F"
   alias l="eza -lAh"
   alias ll="eza -l"
   alias la="eza -A"
+fi
+
+if (( $+commands[orca-ide] ))
+then
+  alias orca="orca-ide"
 fi

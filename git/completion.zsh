@@ -2,7 +2,7 @@
 # bash `git-completion` script at $completion below (this is where Homebrew
 # tosses it, at least).
 if (( $+commands[brew] )); then
-  completion="$(brew --prefix)/share/zsh/site-functions/_git"
+  completion="$HOMEBREW_PREFIX/share/zsh/site-functions/_git"
 
   if test -f "$completion"
   then
